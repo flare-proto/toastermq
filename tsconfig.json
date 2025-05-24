@@ -9,9 +9,9 @@
     },
     "tstl": {
         "luaTarget": "CC-5.2",
-        "luaLibImport": "require",
+        "luaLibImport": "require-minimal",
         "luaBundle": "main.lua",
-        "luaBundleEntry": "main.ts"
+        "luaBundleEntry": "main.ts",
     },
     "include": [
         "./*.ts",

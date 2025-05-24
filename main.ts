@@ -11,7 +11,7 @@ assert(postHandle, "Failed to start Krist websocket");
 const data = textutils.unserializeJSON(postHandle.readAll());
 postHandle.close();
 random.init(data.url);
-// Get the websocket and close it if successful
+// Get the websocket and close it if successful, be nice
 const [ws] = http.websocket(data.url);
 if (ws) ws.close();
 
@@ -23,7 +23,7 @@ const id = ecnet2.Identity("/.ecnet2");
 
 // Define a protocol
 const ping = id.Protocol({
-  name: "ping",
+  name: "toastermq0.0.1",
   serialize: textutils.serialize,
   deserialize: textutils.unserialize,
 });
@@ -38,52 +38,12 @@ function main(): void {
     const evt = event.pullEvent();
 
     if (evt instanceof event.ECNet2RequestEvent && evt.id === listener.id) {
-        Broker.connect(evt,listener)
+      connections[evt.id] = Broker.connect(evt,listener);
     } else if (evt instanceof event.ECNet2MessageEvent && connections[evt.id]) {
-      Broker.onMessage(evt)
+      Broker.onMessage(evt);
     }
   }
 }
 
+//TODO better threading
 parallel.waitForAny(main, ecnet2.daemon);
-
-
-/*
-class Connection {
-    id:number;
-    isEncrypted:boolean;
-    encryptionKey:string;
-    queues: Array<Queue>;
-}
-
-class Queue {
-  packets: Array<string>;
-  routing_key: string;
-  exchange: string;
-  name:string;
-  connection:Connection;
-}
-
-class Exchange {
-  packets: Array<string>;
-  queues: Record<string, Queue>;
-  name:string;
-}
-
-// Put your code here
-let queues: Record<string, Queue> =  {}
-let exchanges:Record<string, Queue> = {}
-
-let connected = new Map<number, Connection>();
-
-
-
-function recvPacket(evt:event.ModemMessageEvent) {
-    let packet:Object = textutils.unserialiseJSON(evt.message);
-
-    if (connected.has(evt.replyChannel)) {
-
-    } else {
-
-    }
-}*/

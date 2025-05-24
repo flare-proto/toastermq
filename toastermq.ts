@@ -139,7 +139,7 @@ export class Broker {
 
     public static connect(evt:event.ECNet2RequestEvent,listener:ecnet2.Listener):ecnet2.Connection {
         //TODO Auth?
-        const connection = listener.accept("ping v1.0", evt.request);
+        const connection = listener.accept("toastermq0.1.0", evt.request);
         let conn = new Connection(connection);
         this.connections[evt.id]=conn;
         return connection;
@@ -158,4 +158,4 @@ export class Broker {
         const queue = this.getQueue(queueName);
         exchange.bindQueue(pattern, queue);
     }
-}
+}   
