@@ -2,6 +2,7 @@ import * as event from "./event";
 import * as ecnet2 from "ecnet2";
 import * as random from "ccryptolib.random";
 import { Broker } from "./toastermq";
+import * as pp from "cc.pretty";
 
 // Initialize random generator from Krist websocket
 const [postHandle, err] = http.post("https://krist.dev/ws/start", "{}");
@@ -30,7 +31,7 @@ const ping = id.Protocol({
 
 // Start listening
 const listener = ping.listen();
-const connections: Record<string, ecnet2.Connection> = {};
+const connections: LuaTable<string, ecnet2.Connection> = new LuaTable<string, ecnet2.Connection>();
 
 function main(): void {
   print("Server Started");
@@ -38,10 +39,11 @@ function main(): void {
     const evt = event.pullEvent();
 
     if (evt instanceof event.ECNet2RequestEvent && evt.id === listener.id) {
-      connections[evt.id] = Broker.connect(evt,listener);
-    } else if (evt instanceof event.ECNet2MessageEvent && connections[evt.id]) {
+      const [net,id] = Broker.connect(evt,listener);
+      connections[id] = net
+    } else if (evt instanceof event.ECNet2MessageEvent && connections[evt.msg.id]) {
       Broker.onMessage(evt);
-    }
+    } 
   }
 }
 
