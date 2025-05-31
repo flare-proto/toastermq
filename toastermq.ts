@@ -1,6 +1,7 @@
 import * as ecnet2 from "ecnet2";
 import * as event from "./event";
 
+
 interface IDataHandler {
     enqueue(data:any): void;
 }
@@ -28,9 +29,14 @@ export class Connection {
             if (obj.subscribeToQueue) {
                 this.subscribeToQueue(obj.subscribeToQueue);
             }else if (obj.declareQueue) {
-                Broker.getQueue(obj.declareQueue); // idempotent
+                Broker.getQueue(obj.declareQueue);
+                print("declareQueue")
+            }else if (obj.declareExchange) {
+                Broker.getExchange(obj.declareExchange)
+                print("declareExchange")
             }else if (obj.bindQueue) {
                 const { queue, exchange, pattern } = obj.bindQueue;
+                print("bindQueue")
                 Broker.bind(exchange, queue, pattern);
             } else if (obj.routingKey && obj.data) {
                 const pkt = new Packet(obj.routingKey, obj.data);
@@ -62,7 +68,7 @@ export class Connection {
 export class Exchange implements IDataHandler {
     private bindings: { pattern: string, queue: Queue }[] = [];
 
-    constructor(public routingKey: string) {} // Optional metadata
+    constructor(public routingKey: string) {}
 
     public bindQueue(pattern: string, queue: Queue): void {
         this.bindings.push({ pattern, queue });
@@ -115,11 +121,19 @@ export class Queue implements IDataHandler {
         }
     }
 }
-export class Broker {
-    private static exchanges: Map<string, Exchange> = new Map();
-    private static queues: Map<string, Queue> = new Map();
 
-    private static connections: Map<string, Connection> = new Map();
+function uuid() {
+    let template ='xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'
+    return string.gsub(template, '[xy]', (c) => {
+        let v = (c == 'x') && math.random(0, 0xf) || math.random(8, 0xb)
+        return string.format('%x', v)
+    })
+}
+export class Broker {
+    private static exchanges: LuaTable<string, Exchange> = new LuaTable<string, Exchange>();
+    private static queues: LuaTable<string, Queue> = new LuaTable<string, Queue>();
+
+    private static connections: LuaTable<string, Connection> = new LuaTable<string, Connection>();
 
     // Get or create an exchange
     public static getExchange(name: string): Exchange {
@@ -137,18 +151,29 @@ export class Broker {
         return this.queues.get(name)!;
     }
 
-    public static connect(evt:event.ECNet2RequestEvent,listener:ecnet2.Listener):ecnet2.Connection {
+    public static connect(evt:event.ECNet2RequestEvent,listener:ecnet2.Listener): LuaMultiReturn<[ecnet2.Connection,string]> {
         //TODO Auth?
-        const connection = listener.accept("toastermq0.1.0", evt.request);
+        print("connect",evt.id,evt.request)
+        const [id,_] = uuid()
+        const connection = listener.accept(id, evt.request);
         let conn = new Connection(connection);
-        this.connections[evt.id]=conn;
-        return connection;
+        this.connections.set(id,conn);
+        return $multi(connection,id);
     }
 
     public static onMessage(evt:event.ECNet2MessageEvent) {
-        try {
-            this.connections.get(evt.id).onMessage(evt.msg);
-        } catch {}
+        print("ECNet2MessageEvent",evt.msg.id)
+        xpcall(() => {
+            if (!this.connections.has(evt.msg.id)) {
+                print("NO EXISTS")
+            }
+            const con = this.connections.get(evt.msg.id)
+            con.onMessage(evt.msg);
+        },(e) => {
+            printError(e)
+           
+        })
+
         
     }
 
